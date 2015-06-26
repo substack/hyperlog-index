@@ -10,15 +10,18 @@ var log = hyperlog(hdb);
 var sub = require('subleveldown');
 var indexer = require('../');
 
-indexer(log, sub(idb, 'sub'), function (row, db, next) {
+var sdb = indexer(log, sub(idb, 'sum'), function (row, db, next) {
     db.get('state', function (err, value) {
-        if (process.argv[2] === 'put') {
-            var n = Number(process.argv[3]);
-            db.put('state', (value || 0) + n, next);
-        }
-        else {
-            console.log(value || 0);
-            next();
-        }
+        db.put('state', (value || 0) + row.value.n, next);
     });
 });
+
+if (process.argv[2] === 'put') {
+    var n = Number(process.argv[3]);
+    log.append(JSON.stringify({ n: n }));
+}
+else {
+    sdb.get('state', function (err, value) {
+        console.log(value || 0);
+    });
+}
