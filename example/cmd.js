@@ -57,7 +57,12 @@ console.log('VALUE=', value);
     }
 });
 
-var doc = JSON.stringify({ n: Number(process.argv[2]) });
-log.append(doc, function (err) {
-    //if (err) return console.error(err.stack);
-});
+if (process.argv[2] === 'add') {
+    var doc = JSON.stringify({ n: Number(process.argv[2]) });
+    log.append(doc, function (err) {
+        //if (err) return console.error(err.stack);
+    });
+}
+else if (process.argv[2] === 'get') {
+    // ugh...
+}
