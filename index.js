@@ -1,16 +1,17 @@
 var through = require('through2');
-var xtend = require('xtend');
 var sub = require('subleveldown');
 var transaction = require('level-transactions');
 
 module.exports = function (log, db, fn) {
+    var change;
     db.get('change', { valueEncoding: 'json' }, function (err, ch) {
         if (err && err.type === 'NotFoundError') {
             ch = 0; // initial value
         }
         else if (err) {} // ???
         
-        var s = log.createReadStream({ since: ch, live: true });
+        change = ch;
+        var s = log.createReadStream({ since: ch });
         s.pipe(through.obj(write, end));
         //s.on('error', ???);
     });
@@ -22,19 +23,21 @@ module.exports = function (log, db, fn) {
         fn(row, xdb, function (err) {
             if (err) return //???
             
+            change = row.change;
             tx.put('change', row.change, { valueEncoding: 'json' },
             function (err) {
                 if (err) return //???
                 tx.commit(function (err) {
                     if (err) return //???
+                    next();
                 });
             });
         });
     }
     
     function end () {
-        sum.get('state', function (err, value) {
-            console.log('value=', value);
-        });
+        var s = log.createReadStream({ since: change, live: true });
+        s.pipe(through.obj(write));
+        xdb.emit('blah');
     }
 };
