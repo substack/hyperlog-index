@@ -2,28 +2,27 @@ var level = require('level');
 var through = require('through2');
 
 var hdb = level('/tmp/log.db');
-var idb = level('/tmp/index.db', { valueEncoding: 'json' });
+var idb = level('/tmp/index.db');
 
 var hyperlog = require('hyperlog');
-var log = hyperlog(hdb);
+var log = hyperlog(hdb, { valueEncoding: 'json' });
 
 var sub = require('subleveldown');
 var indexer = require('../');
 
-var sdb = indexer(log, sub(idb, 'sum'), function (row, db, next) {
+var sdb = sub(idb, 'sum', { valueEncoding: 'json' });
+var xdb = indexer(log, sdb, function (row, db, next) {
     db.get('state', function (err, value) {
-console.log('value=', value); 
-console.log('row=', row); 
-        db.put('state', Number(value || 0) + row.value.n, next);
+        db.put('state', (value || 0) + row.value.n, next);
     });
 });
 
-if (process.argv[2] === 'put') {
+if (process.argv[2] === 'add') {
     var n = Number(process.argv[3]);
-    log.append(JSON.stringify({ n: n }));
+    log.append({ n: n });
 }
-else {
-    sdb.get('state', function (err, value) {
+else if (process.argv[2] === 'show') {
+    xdb.get('state', function (err, value) {
         console.log(value || 0);
     });
 }

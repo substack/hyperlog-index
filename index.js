@@ -14,13 +14,12 @@ module.exports = function (log, db, fn) {
         s.pipe(through.obj(write, end));
         //s.on('error', ???);
     });
-    var xdb = sub(db, 'x');
+    var xdb = sub(db, 'x', db.options);
     return xdb;
     
     function write (row, enc, next) {
         var tx = transaction(db);
-        var rrow = xtend(row, { value: JSON.parse(row.value) });
-        fn(rrow, xdb, function (err) {
+        fn(row, xdb, function (err) {
             if (err) return //???
             
             tx.put('change', row.change, { valueEncoding: 'json' },
