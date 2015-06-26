@@ -12,7 +12,9 @@ var indexer = require('../');
 
 var sdb = indexer(log, sub(idb, 'sum'), function (row, db, next) {
     db.get('state', function (err, value) {
-        db.put('state', (value || 0) + row.value.n, next);
+console.log('value=', value); 
+console.log('row=', row); 
+        db.put('state', Number(value || 0) + row.value.n, next);
     });
 });
 

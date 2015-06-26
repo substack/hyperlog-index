@@ -1,4 +1,5 @@
 var through = require('through2');
+var xtend = require('xtend');
 var sub = require('subleveldown');
 var transaction = require('level-transactions');
 
@@ -18,7 +19,8 @@ module.exports = function (log, db, fn) {
     
     function write (row, enc, next) {
         var tx = transaction(db);
-        fn(row, xdb, function (err) {
+        var rrow = xtend(row, { value: JSON.parse(row.value) });
+        fn(rrow, xdb, function (err) {
             if (err) return //???
             
             tx.put('change', row.change, { valueEncoding: 'json' },
