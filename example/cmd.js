@@ -6,7 +6,7 @@ var hyperlog = require('hyperlog');
 var log = hyperlog(hdb, { valueEncoding: 'json' });
 
 var indexer = require('../');
-var xdb = indexer(log, idb, function (row, tx, next) {
+var dex = indexer(log, idb, function (row, tx, next) {
     tx.get('state', function (err, value) {
         tx.put('state', (value || 0) + row.value.n, next);
     });
@@ -17,9 +17,8 @@ if (process.argv[2] === 'add') {
     log.append({ n: n });
 }
 else if (process.argv[2] === 'show') {
-    xdb.on('blah', function () {
-        xdb.get('state', function (err, value) {
-            console.log(value || 0);
-        });
+    var tx = dex.transaction();
+    tx.get('state', function (err, value) {
+        console.log(value || 0);
     });
 }
