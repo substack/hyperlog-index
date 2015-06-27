@@ -1,0 +1,44 @@
+{
+  "name": "hyperlog-index",
+  "version": "1.0.0",
+  "description": "transactional indexes for hyperlog",
+  "main": "index.js",
+  "directories": {
+    "example": "example",
+    "test": "test"
+  },
+  "dependencies": {
+    "inherits": "^2.0.1",
+    "level-proxy": "^1.1.2",
+    "level-transactions": "^0.5.0",
+    "subleveldown": "^2.0.0",
+    "through2": "^2.0.0"
+  },
+  "devDependencies": {
+    "hyperlog": "^4.1.0",
+    "memdb": "^1.0.1",
+    "tape": "^4.0.0"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/hyperlog-index.git"
+  },
+  "keywords": [
+    "append-only",
+    "index",
+    "level",
+    "leveldb",
+    "log",
+    "materialized",
+    "view"
+  ],
+  "author": "substack",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/substack/hyperlog-index/issues"
+  },
+  "homepage": "https://github.com/substack/hyperlog-index#readme"
+}
