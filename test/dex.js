@@ -3,6 +3,7 @@ var indexer = require('../');
 var test = require('tape');
 
 test('from scratch indexes', function (t) {
+    t.plan(2);
     var hdb = memdb();
     var idb = memdb({ valueEncoding: 'json' });
     
@@ -18,10 +19,14 @@ test('from scratch indexes', function (t) {
     log.append({ n: 4 });
     log.append({ n: 100 });
     
-    var tx = dex.transaction();
-    tx.get('state', function (err, value) {
-        t.ifError(err);
-        t.equal(value, 107);
-        tx.close();
+    var n = 0;
+    log.on('add', function () {
+        if (++n !== 3) return;
+        var tx = dex.transaction();
+        tx.get('state', function (err, value) {
+            t.ifError(err);
+            t.equal(value, 107);
+            tx.close();
+        });
     });
 });

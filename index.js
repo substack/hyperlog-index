@@ -29,7 +29,7 @@ Dex.prototype.transaction = function (opts) {
     prox.rollback = function () { prox._proxyMethod('rollback', arguments) };
     prox.close = function () { prox._proxyMethod('rollback', arguments) };
     
-    this.ready(function () {
+    self.ready(function () {
         var tx = transaction(self._xdb, opts);
         prox.swap(tx);
     });
@@ -37,10 +37,14 @@ Dex.prototype.transaction = function (opts) {
 };
 
 Dex.prototype.ready = function (fn) {
-    if (this._state === 'live') {
-        process.nextTick(fn);
+    var self = this;
+    if (self._state === 'live') {
+        process.nextTick(function () {
+            if (self._state === 'live') fn()
+            else self.once('ready', fn)
+        });
     }
-    else this.once('ready', fn)
+    else self.once('ready', fn)
 };
 
 Dex.prototype.resume = function () {
@@ -58,6 +62,9 @@ Dex.prototype.resume = function () {
     });
     
     function write (row, enc, next) {
+        var prevstate = self._state;
+        self._state = 'processing';
+        
         var tx = transaction(self._db);
         self._fn(row, self._xdb, function (err) {
             if (err) return self.emit('error', err);
@@ -67,8 +74,12 @@ Dex.prototype.resume = function () {
         function onput (err) {
             if (err) return self.emit('error', err)
             tx.commit(function (err) {
-                if (err) self.emit('error', err)
-                else next()
+                if (err) return self.emit('error', err)
+                self._state = prevstate;
+                if (prevstate === 'live') {
+                    self.emit('ready');
+                }
+                next()
             });
         }
     }
