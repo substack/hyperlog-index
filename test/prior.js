@@ -1,5 +1,6 @@
 var memdb = require('memdb');
 var indexer = require('../');
+    var hyperlog = require('hyperlog');
 var test = require('tape');
 
 test('resume from prior state', function (t) {
@@ -7,7 +8,6 @@ test('resume from prior state', function (t) {
     var hdb = memdb();
     var idb = memdb({ valueEncoding: 'json' });
     
-    var hyperlog = require('hyperlog');
     var log = hyperlog(hdb, { valueEncoding: 'json' });
     log.append({ n: 3 });
     log.append({ n: 4 });

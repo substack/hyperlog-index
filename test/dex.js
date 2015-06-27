@@ -1,5 +1,6 @@
 var memdb = require('memdb');
 var indexer = require('../');
+var hyperlog = require('hyperlog');
 var test = require('tape');
 
 test('from scratch indexes', function (t) {
@@ -7,7 +8,6 @@ test('from scratch indexes', function (t) {
     var hdb = memdb();
     var idb = memdb({ valueEncoding: 'json' });
     
-    var hyperlog = require('hyperlog');
     var log = hyperlog(hdb, { valueEncoding: 'json' });
     
     var dex = indexer(log, idb, function (row, tx, next) {
