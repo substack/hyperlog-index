@@ -20,5 +20,6 @@ else if (process.argv[2] === 'show') {
     var tx = dex.transaction();
     tx.get('state', function (err, value) {
         console.log(value || 0);
+        tx.close();
     });
 }

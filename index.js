@@ -12,7 +12,6 @@ function Dex (log, db, fn) {
     if (!(this instanceof Dex)) return new Dex(log, db, fn);
     EventEmitter.call(this);
     var self = this;
-    
     this._db = db;
     this._xdb = sub(db, 'x', db.options);
     this._log = log;
@@ -25,8 +24,14 @@ function Dex (log, db, fn) {
 Dex.prototype.transaction = function (opts) {
     var self = this;
     var prox = Proxy();
+    var tx;
+    prox.commit = function () { prox._proxyMethod('commit', arguments) };
+    prox.rollback = function () { prox._proxyMethod('rollback', arguments) };
+    prox.close = function () { prox._proxyMethod('rollback', arguments) };
+    
     this.ready(function () {
-        prox.swap(transaction(self._xdb, opts));
+        var tx = transaction(self._xdb, opts);
+        prox.swap(tx);
     });
     return prox;
 };
