@@ -80,6 +80,55 @@ $ node adder.js show
 
 We did all of this without modifying the underlying log. Hooray!
 
+# api
+
+``` js
+var indexer = require('hyperlog-index')
+```
+
+## var dex = indexer(log, db, fn)
+
+Create a new hyperlog index instance `dex` from a hyperlog `log`, a levelup or
+sublevel database `db`, and an indexing function `fn`.
+
+You can have as many indexes as you like on the same log, just create more `dex`
+instances on sublevels.
+
+## var tx = dex.transaction()
+
+Create a transaction `tx` for the indexes once they've fully "caught up".
+
+`tx` behaves like a levelup handle except it has `.commit()` and `.rollback()`
+methods.
+
+## dex.ready(fn)
+
+`fn()` fires when the indexes are "caught up" or on the next tick if the indexes
+have processed all of the log.
+
+## dex.resume()
+
+Resume the indexes after an error.
+
+## dex.on('ready', function () {})
+
+This event fires when the indexes become "up to date" and switch into live
+update mode.
+
+## dex.on('error', function (err) {})
+
+If the underlying system generates an error, you can catch it here.
+
+Processing stops on errors, but you can resume the indexes with `dex.resume()`.
+
+# install
+
+With [npm](https://npmjs.org) do:
+
+```
+npm install hyperlog-index
+```
+
 # license
 
 MIT
