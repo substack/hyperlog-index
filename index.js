@@ -4,6 +4,10 @@ var transaction = require('level-transactions');
 var inherits = require('inherits');
 var EventEmitter = require('events').EventEmitter;
 var Proxy = require('level-proxy');
+var cow = require('level-cowdown');
+var once = require('once');
+var xtend = require('xtend');
+var levelup = require('levelup');
 
 inherits(Dex, EventEmitter);
 module.exports = Dex;
@@ -14,6 +18,7 @@ function Dex (log, db, fn) {
     var self = this;
     this._db = db;
     this._xdb = sub(db, 'x', db.options);
+    this._vdb = sub(db, 'v', db.options);
     this._log = log;
     this._fn = fn;
     this._change = null;
@@ -21,7 +26,7 @@ function Dex (log, db, fn) {
     process.nextTick(function () { self.resume() });
 }
 
-Dex.prototype.transaction = function (opts) {
+Dex.prototype.transaction = function (head, opts) {
     var self = this;
     var prox = Proxy();
     var tx;
@@ -62,24 +67,76 @@ Dex.prototype.resume = function () {
     });
     
     function write (row, enc, next) {
+        next = once(next);
         var prevstate = self._state;
         self._state = 'processing';
         
-        var tx = transaction(self._db);
-        self._fn(row, self._xdb, function (err) {
-            if (err) return self.emit('error', err);
-            self._change = row.change;
-            tx.put('change', row.change, { valueEncoding: 'json' }, onput);
+        var pending = 1;
+        var from = [];
+        row.links.forEach(function (link) {
+            pending ++;
+            self._vdb.get(link, function (err, value) {
+                if (err && err.type === 'NotFoundError') {
+                    value = 0;
+                }
+                else if (err) return next(err);
+                if (value) from.push(link);
+                self._vdb.put(link, value + 1, function (err) {
+                    if (-- pending === 0) run();
+                });
+            });
         });
-        function onput (err) {
-            if (err) return self.emit('error', err)
+        if (-- pending === 0) run();
+        
+        function run () {
+            /*
+console.log('from:', from); 
+            var tx;
+            if (from.length === 0) {
+                tx = transaction(self._db);
+            }
+            else if (from.length === 1) {
+                tx = transaction(levelup('fake', xtend(self._db.options, {
+                    db: function () {
+                        return cow(sub(self._db, from[0]), sub(self._db, row.key));
+                    }
+                })));
+            }
+            else {
+                self.emit('error', new Error(
+                    'from length > 1 not yet supported'));
+            }
+            */
+            var tx = transaction(levelup('fake', xtend(self._db.options, {
+                db: function () {
+                    return cow(
+                        row.links.length
+                            ? sub(self._db, row.links[0])
+                            : self._xdb
+                        ,
+                        sub(self._db, row.key)
+                    );
+                }
+            })));
+            
+            self._fn(row, tx, function (err) {
+                if (err) return self.emit('error', err);
+                self._change = row.change;
+                tx.put('change', row.change, { valueEncoding: 'json' },
+                function (err) {
+                    if (err) return self.emit('error', err);
+                    onput(tx);
+                });
+            });
+        }
+        function onput (tx) {
             tx.commit(function (err) {
                 if (err) return self.emit('error', err)
                 self._state = prevstate;
                 if (prevstate === 'live') {
                     self.emit('ready');
                 }
-                next()
+                next();
             });
         }
     }
