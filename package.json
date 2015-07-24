@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "inherits": "^2.0.1",
-    "level-cowdown": "^1.0.0",
-    "level-proxy": "^1.1.2",
+    "level-forks": "^1.1.0",
     "level-transactions": "^0.5.0",
     "levelup": "^1.2.1",
     "subleveldown": "^2.0.0",
