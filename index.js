@@ -60,6 +60,8 @@ function Ix (log, db, fn) {
 
 Ix.prototype.transaction = function (seq, opts) {
   var self = this;
+  if (seq && typeof seq === 'object' && seq.key) seq = seq.key;
+  
   var def = new Deferred;
   var up = levelup('fake', xtend(
     xtend(self._options, opts),
