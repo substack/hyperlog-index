@@ -8,20 +8,23 @@
     "test": "test"
   },
   "dependencies": {
+    "deferred-leveldown": "^1.2.0",
     "inherits": "^2.0.1",
     "level-forks": "^1.1.0",
     "level-transactions": "^0.5.0",
     "levelup": "^1.2.1",
-    "subleveldown": "^2.0.0",
-    "through2": "^2.0.0"
+    "through2": "^2.0.0",
+    "xtend": "^4.0.0"
   },
   "devDependencies": {
+    "covert": "^1.1.0",
     "hyperlog": "^4.1.0",
     "memdb": "^1.0.1",
     "tape": "^4.0.0"
   },
   "scripts": {
-    "test": "tape test/*.js"
+    "test": "tape test/*.js",
+    "coverage": "covert test/*.js"
   },
   "repository": {
     "type": "git",
