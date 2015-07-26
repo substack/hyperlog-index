@@ -16,15 +16,15 @@ function Ix (log, db, fn) {
   var self = this;
   this.forks = Forks(db, db.options);
   this._options = db.options;
-  this._state = 'stale';
-  this._pending = 0;
-  log.on('add', function () { self._pending ++ });
+  this._pending = 1;
+  log.on('preadd', function () {
+    self._pending ++
+  });
   var r = log.createReadStream();
   r.pipe(through.obj(write, end));
   
   function write (row, enc, next) {
-    var prevstate = self._state;
-    self._state = 'processing';
+    self._pending ++;
     self.forks.create(
       row.key,
       row.links,
@@ -39,11 +39,8 @@ function Ix (log, db, fn) {
         else tx.commit(function (err) {
           if (err) return next(err)
           self._change = row.change;
-          self._state = prevstate;
-          if (--self._pending === 0 && prevstate === 'live') {
-            self.emit('ready')
-          }
           next();
+          self._finish(2);
         })
       });
     }
@@ -53,8 +50,7 @@ function Ix (log, db, fn) {
       live: true,
       since: self._change
     }).pipe(through.obj(write));
-    self._state = 'live';
-    self.emit('ready');
+    self._finish(1);
   }
 }
 
@@ -77,12 +73,16 @@ Ix.prototype.transaction = function (seq, opts) {
 };
 
 Ix.prototype.ready = function (fn) {
+  if (this._pending === 0) fn()
+  else this.once('ready', fn)
+};
+
+Ix.prototype._finish = function (n) {
   var self = this;
-  if (self._state === 'live' && self._pending === 0) {
-    process.nextTick(function () {
-      if (self._state === 'live') fn()
-      else self.once('ready', fn)
-    });
-  }
-  else self.once('ready', fn)
+  process.nextTick(function () {
+    self._pending -= n;
+    if (self._pending === 0) {
+      self.emit('ready');
+    }
+  });
 };

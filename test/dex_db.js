@@ -7,7 +7,6 @@ test('from scratch indexes', function (t) {
   t.plan(3);
   var hdb = level('h-' + Math.random());
   var idb = level('i-' + Math.random(), { valueEncoding: 'json' });
-  
   var log = hyperlog(hdb, { valueEncoding: 'json' });
   
   var dex = indexer(log, idb, function (row, tx, next) {
@@ -15,13 +14,15 @@ test('from scratch indexes', function (t) {
       tx.put('state', (value || 0) + row.value.n, next);
     });
   });
-  log.append({ n: 3 });
-  log.append({ n: 4 });
-  log.append({ n: 100 });
+  log.add(null, { n: 3 }, function (err, node0) {
+    log.add(node0, { n: 4 }, function (err, node1) {
+      log.add(node1, { n: 100 }, function (err, node2) {
+        ready();
+      });
+    });
+  });
   
-  var n = 0;
-  log.on('add', function () {
-    if (++n !== 3) return;
+  function ready () {
     log.heads(function (err, heads) {
       t.ifError(err);
       var tx = dex.transaction(heads[0].key);
@@ -31,5 +32,5 @@ test('from scratch indexes', function (t) {
         tx.close();
       });
     });
-  });
+  }
 });

@@ -10,7 +10,7 @@
   "dependencies": {
     "deferred-leveldown": "^1.2.0",
     "inherits": "^2.0.1",
-    "level-forks": "^1.1.0",
+    "level-forks": "^1.1.1",
     "level-transactions": "^0.5.0",
     "levelup": "^1.2.1",
     "through2": "^2.0.0",
@@ -19,6 +19,7 @@
   "devDependencies": {
     "covert": "^1.1.0",
     "hyperlog": "^4.1.0",
+    "level-test": "^2.0.0",
     "memdb": "^1.0.1",
     "tape": "^4.0.0"
   },
