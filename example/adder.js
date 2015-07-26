@@ -7,19 +7,24 @@ var log = hyperlog(hdb, { valueEncoding: 'json' });
 
 var indexer = require('../');
 var dex = indexer(log, idb, function (row, tx, next) {
-    tx.get('state', function (err, value) {
-        tx.put('state', (value || 0) + row.value.n, next);
-    });
+  tx.get('state', function (err, value) {
+    tx.put('state', (value || 0) + row.value.n, next);
+  });
 });
 
 if (process.argv[2] === 'add') {
-    var n = Number(process.argv[3]);
-    log.append({ n: n });
+  var n = Number(process.argv[3]);
+  log.append({ n: n });
 }
 else if (process.argv[2] === 'show') {
-    var tx = dex.transaction();
+  log.heads(function (err, heads) {
+    heads.forEach(onhead);
+  });
+  function onhead (head) {
+    var tx = dex.transaction(head.key);
     tx.get('state', function (err, value) {
-        console.log(value || 0);
-        tx.close();
+      console.log(value || 0);
+      tx.close();
     });
+  }
 }
