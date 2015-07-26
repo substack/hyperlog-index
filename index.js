@@ -16,12 +16,32 @@ function Ix (log, db, fn) {
   var self = this;
   this.forks = Forks(db, db.options);
   this._options = db.options;
-  this._pending = 1;
+  this._pending = 2;
   log.on('preadd', function () {
     self._pending ++
   });
-  var r = log.createReadStream();
-  r.pipe(through.obj(write, end));
+  
+  log.heads(function (err, heads) {
+    if (heads.length === 0) {
+      self._finish(1);
+    }
+    else {
+      var maxch = -1;
+      heads.forEach(function (h) {
+        if (h.change > maxch) maxch = h.change;
+      });
+      self.on('change', onchange);
+    }
+    var r = log.createReadStream();
+    r.pipe(through.obj(write, end));
+    
+    function onchange (ch) {
+      if (ch >= maxch) {
+        self.removeListener('change', onchange);
+        self._finish(1);
+      }
+    }
+  });
   
   function write (row, enc, next) {
     self._pending ++;
@@ -39,6 +59,7 @@ function Ix (log, db, fn) {
         else tx.commit(function (err) {
           if (err) return next(err)
           self._change = row.change;
+          self.emit('change', self._change);
           next();
           self._finish(2);
         })
