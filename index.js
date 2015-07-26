@@ -24,12 +24,16 @@ function Ix (log, db, fn) {
   this._added = {};
   
   log.on('add', function (node) {
-    self._pending ++;
-    self._added[node.key] = (self._added[node.key] || 0) + 1;
+    if (node) {
+      self._pending ++;
+      self._added[node.key] = (self._added[node.key] || 0) + 1;
+    }
   });
   log.on('preadd', function (node) {
-    self._pending ++
-    self._added[node.key] = (self._added[node.key] || 0) + 1;
+    if (node) {
+      self._pending ++
+      self._added[node.key] = (self._added[node.key] || 0) + 1;
+    }
   });
   db.get('xc', function (err, value) {
     log.ready(function () {
