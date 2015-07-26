@@ -6,6 +6,7 @@ var EventEmitter = require('events').EventEmitter;
 var Deferred = require('deferred-leveldown');
 var levelup = require('levelup');
 var xtend = require('xtend');
+var sub = require('subleveldown');
 
 module.exports = Ix;
 inherits(Ix, EventEmitter);
@@ -18,6 +19,7 @@ function Ix (log, db, fn) {
   this._options = db.options;
   this._pending = 1;
   this._expected = 0;
+  this._change = -1;
   this._log = log;
   this._added = {};
   
@@ -30,9 +32,12 @@ function Ix (log, db, fn) {
     self._added[node.key] = (self._added[node.key] || 0) + 1;
   });
   log.ready(function () {
-    var r = log.createReadStream();
-    r.on('error', function (err) { self.emit('error', err) });
-    r.pipe(through.obj(write, end));
+    db.get('xc', function (err, value) {
+      self._change = value;
+      var r = log.createReadStream({ since: value });
+      r.on('error', function (err) { self.emit('error', err) });
+      r.pipe(through.obj(write, end));
+    });
   });
   
   function write (row, enc, next) {
@@ -40,11 +45,18 @@ function Ix (log, db, fn) {
     self.forks.create(
       row.key,
       row.links,
-      { valueEncoding: 'json' },
+      { valueEncoding: 'json', prebatch: prebatch },
       oncreate
     );
+    function prebatch (ops, cb) {
+      cb(null, ops.concat(
+        { type: 'put', key: 'xc', value: row.change }
+      ));
+    }
+    
     function oncreate (err, c) {
       if (err) return next(err);
+      
       var tx = transaction(c, db.options);
       fn(row, tx, function (err) {
         if (err) next(err)
@@ -61,13 +73,15 @@ function Ix (log, db, fn) {
     }
   }
   function end () {
-    var r = log.createReadStream({
-      live: true,
-      since: self._change
+    log.ready(function () {
+      var r = log.createReadStream({
+        live: true,
+        since: self._change
+      });
+      r.pipe(through.obj(write));
+      r.on('error', function (err) { self.emit('error', err) });
+      self._finish(1);
     });
-    r.pipe(through.obj(write));
-    r.on('error', function (err) { self.emit('error', err) });
-    self._finish(1);
   }
 }
 

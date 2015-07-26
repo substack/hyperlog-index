@@ -10,9 +10,10 @@
   "dependencies": {
     "deferred-leveldown": "^1.2.0",
     "inherits": "^2.0.1",
-    "level-forks": "^1.1.1",
+    "level-forks": "^1.2.0",
     "level-transactions": "^0.5.0",
     "levelup": "^1.2.1",
+    "subleveldown": "^2.0.0",
     "through2": "^2.0.0",
     "xtend": "^4.0.0"
   },
