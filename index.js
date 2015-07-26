@@ -31,8 +31,8 @@ function Ix (log, db, fn) {
     self._pending ++
     self._added[node.key] = (self._added[node.key] || 0) + 1;
   });
-  log.ready(function () {
-    db.get('xc', function (err, value) {
+  db.get('xc', function (err, value) {
+    log.ready(function () {
       self._change = value;
       var r = log.createReadStream({ since: value });
       r.on('error', function (err) { self.emit('error', err) });
