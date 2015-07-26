@@ -16,32 +16,22 @@ function Ix (log, db, fn) {
   var self = this;
   this.forks = Forks(db, db.options);
   this._options = db.options;
-  this._pending = 2;
-  log.on('preadd', function () {
-    self._pending ++
-  });
+  this._pending = 1;
+  this._expected = 0;
+  this._log = log;
+  this._added = {};
   
-  log.heads(function (err, heads) {
-    if (heads.length === 0) {
-      self._finish(1);
-    }
-    else {
-      var maxch = -1;
-      heads.forEach(function (h) {
-        if (h.change > maxch) maxch = h.change;
-      });
-      self.on('change', onchange);
-    }
-    var r = log.createReadStream();
-    r.pipe(through.obj(write, end));
-    
-    function onchange (ch) {
-      if (ch >= maxch) {
-        self.removeListener('change', onchange);
-        self._finish(1);
-      }
-    }
+  log.on('add', function (node) {
+    self._pending ++;
+    self._added[node.key] = (self._added[node.key] || 0) + 1;
   });
+  log.on('preadd', function (node) {
+    self._pending ++
+    self._added[node.key] = (self._added[node.key] || 0) + 1;
+  });
+  var r = log.createReadStream();
+  r.on('error', function (err) { self.emit('error', err) });
+  r.pipe(through.obj(write, end));
   
   function write (row, enc, next) {
     self._pending ++;
@@ -60,18 +50,22 @@ function Ix (log, db, fn) {
           if (err) return next(err)
           self._change = row.change;
           self.emit('change', self._change);
+          
           next();
-          self._finish(2);
+          self._finish(1 + (self._added[row.key] || 0));
+          delete self._added[row.key];
         })
       });
     }
   }
   function end () {
-    log.createReadStream({
+    var r = log.createReadStream({
       live: true,
       since: self._change
-    }).pipe(through.obj(write));
-    self._finish(1);
+    });
+    r.pipe(through.obj(write));
+    r.on('error', function (err) { self.emit('error', err) });
+    self._checkReady();
   }
 }
 
@@ -104,6 +98,33 @@ Ix.prototype._finish = function (n) {
     self._pending -= n;
     if (self._pending === 0) {
       self.emit('ready');
+    }
+  });
+};
+
+Ix.prototype._checkReady = function () {
+  var self = this;
+console.log('CHECK'); 
+  self._log.heads(function (err, heads) {
+console.log('HEADS=', err, heads); 
+    if (heads.length === 0) return self._finish(1);
+    
+    var maxch = -1;
+    for (var i = 0; i < heads.length; i++) {
+      maxch = Math.max(maxch, heads[i].change);
+    }
+console.log(self._change, maxch); 
+    if (self._change >= maxch) {
+      self._finish(1);
+    }
+    else self.on('change', onchange);
+    
+    function onchange (ch) {
+      console.log('ONCHANGE', ch);
+      if (ch >= maxch) {
+        self.removeListener('change', onchange);
+        self._finish(1);
+      }
     }
   });
 };
