@@ -29,9 +29,11 @@ function Ix (log, db, fn) {
     self._pending ++
     self._added[node.key] = (self._added[node.key] || 0) + 1;
   });
-  var r = log.createReadStream();
-  r.on('error', function (err) { self.emit('error', err) });
-  r.pipe(through.obj(write, end));
+  log.ready(function () {
+    var r = log.createReadStream();
+    r.on('error', function (err) { self.emit('error', err) });
+    r.pipe(through.obj(write, end));
+  });
   
   function write (row, enc, next) {
     self._pending ++;
@@ -65,7 +67,7 @@ function Ix (log, db, fn) {
     });
     r.pipe(through.obj(write));
     r.on('error', function (err) { self.emit('error', err) });
-    self._checkReady();
+    self._finish(1);
   }
 }
 
@@ -98,33 +100,6 @@ Ix.prototype._finish = function (n) {
     self._pending -= n;
     if (self._pending === 0) {
       self.emit('ready');
-    }
-  });
-};
-
-Ix.prototype._checkReady = function () {
-  var self = this;
-console.log('CHECK'); 
-  self._log.heads(function (err, heads) {
-console.log('HEADS=', err, heads); 
-    if (heads.length === 0) return self._finish(1);
-    
-    var maxch = -1;
-    for (var i = 0; i < heads.length; i++) {
-      maxch = Math.max(maxch, heads[i].change);
-    }
-console.log(self._change, maxch); 
-    if (self._change >= maxch) {
-      self._finish(1);
-    }
-    else self.on('change', onchange);
-    
-    function onchange (ch) {
-      console.log('ONCHANGE', ch);
-      if (ch >= maxch) {
-        self.removeListener('change', onchange);
-        self._finish(1);
-      }
     }
   });
 };
