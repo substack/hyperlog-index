@@ -12,7 +12,7 @@ var idb = level('/tmp/index.db', { valueEncoding: 'json' });
 var hyperlog = require('hyperlog');
 var log = hyperlog(hdb, { valueEncoding: 'json' });
 
-var indexer = require('../');
+var indexer = require('hyperlog-index');
 var dex = indexer(log, idb, function (row, tx, next) {
   tx.get('state', function (err, value) {
     tx.put('state', (value || 0) + row.value.n, next);
@@ -84,6 +84,71 @@ $ node adder.js show
 ```
 
 We did all of this without modifying the underlying log. Hooray!
+
+## forking example
+
+If there are forks in the data set, the indexes are forked along with the data.
+
+For example, if we create a forked data set:
+
+``` js
+var memdb = require('memdb');
+var indexer = require('hyperlog-index');
+var hyperlog = require('hyperlog');
+
+var hdb = memdb();
+var idb = memdb({ valueEncoding: 'json' });
+var log = hyperlog(hdb, { valueEncoding: 'json' });
+
+var dex = indexer(log, idb, function (row, tx, next) {
+  tx.get('sum', function (err, value) {
+    tx.put('sum', (value || 0) + row.value.n, next);
+  });
+});
+
+log.add(null, { n: 3 }, function (err, node0) {
+  log.add([node0.key], { n: 4 }, function (err, node1) {
+    log.add([node1.key], { n: 100 }, function (err, node2) {
+      log.add([node0.key], { n: 101 }, ready);
+    });
+  });
+});
+
+function ready () {
+  log.heads().on('data', function (head) {
+    var tx = dex.transaction(head.key);
+    tx.get('sum', function (err, value) {
+      console.log(head.key, 'VALUE=', value);
+      tx.close();
+    });
+  });
+}
+```
+
+There will be 2 separate index results for each head:
+
+```
+$ node fork.js 
+76bf45fa113a16580478e530542a356324841cb8bd230956bf1fd420d0f35e00 VALUE= 107
+e562c405b73e3c027487d9121df2f50478db5f9565f805e7bce75f9996b6c9ea VALUE= 104
+```
+
+If we merge this data later:
+
+``` js
+log.add([ node2.key, node3.key ], { n: 500 }, ready);
+```
+
+Because our data is commutative the indexes will automatically converge without
+handling merging explicitly in the indexes:
+
+```
+$ node merge.js 
+313f00da58ba48535f1a284a1e7735692c2f107479af2eda93670b5316efec54 VALUE= 607
+```
+
+For more complicated scenarios, you might want to include extra information in
+the update for the index function to resolve the merge.
 
 # api
 
