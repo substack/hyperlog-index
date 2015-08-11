@@ -172,6 +172,10 @@ fully "caught up".
 `tx` behaves like a levelup handle except it has `.commit()` and `.rollback()`
 methods.
 
+At this time `tx.createReadStream()` will not output values in the current
+transaction, only values that have been previously committed. This may change
+in the future if level-transaction adds support for range locking.
+
 ## dex.ready(fn)
 
 `fn()` fires when the indexes are "caught up" or on the next tick if the indexes
