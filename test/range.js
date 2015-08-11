@@ -23,23 +23,26 @@ test('range', function (t) {
       });
     });
   });
-    
-    function ready () {
-      log.heads(function (err, heads) {
-        heads.forEach(onhead);
-      });
+ 
+  function ready () {
+    log.heads(function (err, heads) {
+      heads.forEach(onhead);
+    });
+  }
+  
+  function onhead (head) {
+    var tx = dex.transaction(head.key);
+    collect(tx.createReadStream({
+      gt: 'n!',
+      lt: 'n!~'
+    }), onrows)
+    function onrows (err, rows) {
+      t.deepEqual(rows.map(function (row) {
+        return Number(row.key.split('!')[1]);
+      }).sort(cmp), [ 3, 4, 100 ])
+      tx.close();
     }
-    
-    function onhead (head) {
-      var tx = dex.transaction(head.key);
-      collect(tx.createReadStream({
-        gt: 'n!',
-        lt: 'n!~'
-      }), onrows)
-      function onrows (err, rows) {
-        t.deepEqual(rows.map(function (row) {
-          return Number(row.key.split('!')[1]);
-        }).sort(), [ 3, 4, 100 ])
-      }
-    }
+  }
 });
+
+function cmp (a, b) { return a - b }
