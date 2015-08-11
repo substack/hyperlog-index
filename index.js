@@ -99,10 +99,12 @@ Ix.prototype.transaction = function (seq, opts) {
     { db: function () { return def } }
   ));
   var tx = transaction(up);
+  tx.createReadStream = up.createReadStream.bind(up);
   tx.close = function () { tx.rollback() };
   
   self.ready(function () {
-    def.setDb(self.forks.open(seq));
+    var db = self.forks.open(seq);
+    def.setDb(db.db || db);
   });
   return tx;
 };
