@@ -62,6 +62,7 @@ function Ix (log, db, fn) {
       if (err) return next(err);
       
       var tx = transaction(c, db.options);
+      tx.createReadStream = c.createReadStream.bind(c);
       fn(row, tx, function (err) {
         if (err) next(err)
         else tx.commit(function (err) {
