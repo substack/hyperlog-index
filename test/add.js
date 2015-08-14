@@ -32,7 +32,7 @@ test('add', function (t) {
     }
     
     function onhead (head) {
-      var tx = dex.transaction(head.key);
+      var tx = dex.open(head.key);
       tx.get('state', function (err, value) {
         t.ifError(err);
         t.equal(value, 107);

@@ -31,7 +31,7 @@ test('range', function (t) {
   }
   
   function onhead (head) {
-    var tx = dex.transaction(head.key);
+    var tx = dex.open(head.key);
     collect(tx.createReadStream({
       gt: 'n!bar',
       lt: 'n!qaz'

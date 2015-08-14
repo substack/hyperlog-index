@@ -24,7 +24,7 @@ test('key property in the sequence', function (t) {
     if (++n !== 3) return;
     log.heads(function (err, heads) {
       t.ifError(err);
-      var tx = dex.transaction(heads[0]);
+      var tx = dex.open(heads[0]);
       tx.get('state', function (err, value) {
         t.ifError(err);
         t.equal(value, 107);

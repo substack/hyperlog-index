@@ -38,7 +38,7 @@ test('fork', function (t) {
   function keyf (x) { return x.key }
   
   function onhead (head) {
-    var tx = dex.transaction(head);
+    var tx = dex.open(head);
     tx.get('state', function (err, value) {
       t.ifError(err);
       t.equal(value, expected.shift());

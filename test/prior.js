@@ -24,7 +24,7 @@ test('resume from prior state', function (t) {
     log.heads(function (err, heads) {
       t.ifError(err);
       t.equal(heads.length, 1);
-      var tx = dex.transaction(heads[0].key);
+      var tx = dex.open(heads[0].key);
       tx.get('state', function (err, value) {
         t.ifError(err);
         t.equal(value, 107);

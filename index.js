@@ -1,6 +1,5 @@
 var Forks = require('level-forks');
 var through = require('through2');
-var transaction = require('level-transactions');
 var inherits = require('inherits');
 var EventEmitter = require('events').EventEmitter;
 var Deferred = require('deferred-leveldown');
@@ -60,20 +59,13 @@ function Ix (log, db, fn) {
     
     function oncreate (err, c) {
       if (err) return next(err);
-      
-      var tx = transaction(c, db.options);
-      tx.createReadStream = c.createReadStream.bind(c);
-      fn(row, tx, function (err) {
+      fn(row, c, function (err) {
         if (err) next(err)
-        else tx.commit(function (err) {
-          if (err) return next(err)
-          self._change = row.change;
-          self.emit('change', self._change);
-          
-          next();
-          self._finish(1 + (self._added[row.key] || 0));
-          delete self._added[row.key];
-        })
+        self._change = row.change;
+        self.emit('change', self._change);
+        next();
+        self._finish(1 + (self._added[row.key] || 0));
+        delete self._added[row.key];
       });
     }
   }
@@ -90,7 +82,7 @@ function Ix (log, db, fn) {
   }
 }
 
-Ix.prototype.transaction = function (seq, opts) {
+Ix.prototype.open = function (seq, opts) {
   var self = this;
   if (seq && typeof seq === 'object' && seq.key) seq = seq.key;
   
@@ -99,15 +91,12 @@ Ix.prototype.transaction = function (seq, opts) {
     xtend(self._options, opts),
     { db: function () { return def } }
   ));
-  var tx = transaction(up);
-  tx.createReadStream = up.createReadStream.bind(up);
-  tx.close = function () { tx.rollback() };
   
   self.ready(function () {
     var db = self.forks.open(seq);
     def.setDb(db.db || db);
   });
-  return tx;
+  return up;
 };
 
 Ix.prototype.ready = function (fn) {

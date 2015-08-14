@@ -25,7 +25,7 @@ test('from scratch indexes', function (t) {
   function ready () {
     log.heads(function (err, heads) {
       t.ifError(err);
-      var tx = dex.transaction(heads[0].key);
+      var tx = dex.open(heads[0].key);
       tx.get('state', function (err, value) {
         t.ifError(err);
         t.equal(value, 107);
