@@ -22,7 +22,7 @@ log.add(null, { n: 3 }, function (err, node0) {
 
 function ready () {
   log.heads().on('data', function (head) {
-    var tx = dex.transaction(head.key);
+    var tx = dex.open(head.key);
     tx.get('sum', function (err, value) {
       console.log(head.key, 'VALUE=', value);
       tx.close();

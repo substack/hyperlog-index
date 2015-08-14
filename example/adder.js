@@ -21,7 +21,7 @@ else if (process.argv[2] === 'show') {
     heads.forEach(onhead);
   });
   function onhead (head) {
-    var tx = dex.transaction(head.key);
+    var tx = dex.open(head.key);
     tx.get('state', function (err, value) {
       console.log(value || 0);
       tx.close();

@@ -1,6 +1,6 @@
 # hyperlog-index
 
-transactional indexes for [hyperlog](https://npmjs.com/package/hyperlog)
+forking indexes for [hyperlog](https://npmjs.com/package/hyperlog)
 
 # example
 
@@ -28,7 +28,7 @@ else if (process.argv[2] === 'show') {
     heads.forEach(onhead);
   });
   function onhead (head) {
-    var tx = dex.transaction(head.key);
+    var tx = dex.open(head.key);
     tx.get('state', function (err, value) {
       console.log(value || 0);
       tx.close();
@@ -116,7 +116,7 @@ log.add(null, { n: 3 }, function (err, node0) {
 
 function ready () {
   log.heads().on('data', function (head) {
-    var tx = dex.transaction(head.key);
+    var tx = dex.open(head.key);
     tx.get('sum', function (err, value) {
       console.log(head.key, 'VALUE=', value);
       tx.close();
@@ -164,17 +164,10 @@ sublevel database `db`, and an indexing function `fn`.
 You can have as many indexes as you like on the same log, just create more `dex`
 instances on sublevels.
 
-## var tx = dex.transaction(head)
+## var db = dex.open(head)
 
-Create a transaction `tx` for the indexes at the string `head` once they've
+Create a handle `db` for the indexes at the string `head` once they've
 fully "caught up".
-
-`tx` behaves like a levelup handle except it has `.commit()` and `.rollback()`
-methods.
-
-At this time `tx.createReadStream()` will not output values in the current
-transaction, only values that have been previously committed. This may change
-in the future if level-transaction adds support for range locking.
 
 ## dex.ready(fn)
 
