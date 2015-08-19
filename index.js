@@ -6,6 +6,8 @@ var Deferred = require('deferred-leveldown');
 var levelup = require('levelup');
 var xtend = require('xtend');
 var sub = require('subleveldown');
+var isarray = require('isarray');
+var once = require('once');
 
 module.exports = Ix;
 inherits(Ix, EventEmitter);
@@ -102,20 +104,33 @@ Ix.prototype.open = function (seq, opts) {
 
 Ix.prototype.ready = function (seq, fn) {
   var self = this;
-  if (typeof seq === 'function') {
+  if (typeof seq !== 'function' && !isarray(seq)) seq = [seq];
+  if (seq && (seq.length === 0 || typeof seq === 'function')) {
+    if (typeof seq === 'function') fn = seq;
     if (self._pending === 0) fn()
     else self.once('ready', fn)
+    return;
   }
-  else {
-    self.forks.exists(seq, function (err, ex) {
-      if (err) return fn(err)
-      if (ex) return fn(null)
+  
+  var pending = seq.length + 1;
+  fn = once(fn || function () {});
+  
+  seq.forEach(function (hash) {
+    self.forks.exists(hash, function (err, ex) {
+      if (err) return fn(err);
+      if (ex) return done();
+      
       self.on('row', function f (row) {
-        if (row.key !== seq) return;
+        if (row.key !== hash) return;
         self.removeListener('row', f);
-        fn(null);
+        done();
       });
     })
+  })
+  done()
+  
+  function done () {
+    if (-- pending === 0) fn(null);
   }
 };
 
