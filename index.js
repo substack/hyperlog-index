@@ -62,7 +62,8 @@ function Ix (log, db, fn) {
       fn(row, c, function (err) {
         if (err) next(err)
         self._change = row.change;
-        self.emit('change', self._change);
+        self.emit('change', self._change)
+        self.emit('row', row);
         next();
         self._finish(1 + (self._added[row.key] || 0));
         delete self._added[row.key];
@@ -92,16 +93,30 @@ Ix.prototype.open = function (seq, opts) {
     { db: function () { return def } }
   ));
   
-  self.ready(function () {
+  self.ready(seq, function () {
     var db = self.forks.open(seq);
     def.setDb(db.db || db);
   });
   return up;
 };
 
-Ix.prototype.ready = function (fn) {
-  if (this._pending === 0) fn()
-  else this.once('ready', fn)
+Ix.prototype.ready = function (seq, fn) {
+  var self = this;
+  if (typeof seq === 'function') {
+    if (self._pending === 0) fn()
+    else self.once('ready', fn)
+  }
+  else {
+    self.forks.exists(seq, function (err, ex) {
+      if (err) return fn(err)
+      if (ex) return fn(null)
+      self.on('row', function f (row) {
+        if (row.key !== seq) return;
+        self.removeListener('row', f);
+        fn(null);
+      });
+    })
+  }
 };
 
 Ix.prototype._finish = function (n) {
