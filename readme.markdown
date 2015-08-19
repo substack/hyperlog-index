@@ -169,10 +169,13 @@ instances on sublevels.
 Create a handle `db` for the indexes at the string `head` once they've
 fully "caught up".
 
-## dex.ready(fn)
+## dex.ready(from=[], fn)
 
 `fn()` fires when the indexes are "caught up" or on the next tick if the indexes
 have processed all of the log.
+
+If an array of string keys `from` is given, `fn()` won't fire until the indexes
+have caught up to all of the given keys instead of the entire log.
 
 ## dex.resume()
 
