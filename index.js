@@ -22,6 +22,7 @@ function Ix (log, db, fn) {
   this._expected = 0;
   this._change = -1;
   this._log = log;
+  this._db = db;
   this._added = {};
   
   log.on('add', function (node) {
@@ -55,7 +56,8 @@ function Ix (log, db, fn) {
     );
     function prebatch (ops, cb) {
       cb(null, ops.concat(
-        { type: 'put', key: 'xc', value: row.change }
+        { type: 'put', key: 'xc', value: row.change },
+        { type: 'put', key: 'xe!' + row.key, value: 0 }
       ));
     }
     
@@ -116,7 +118,7 @@ Ix.prototype.ready = function (seq, fn) {
   fn = once(fn || function () {});
   
   seq.forEach(function (hash) {
-    self.forks.exists(hash, function (err, ex) {
+    self._exists(hash, function (err, ex) {
       if (err) return fn(err);
       if (ex) return done();
       
@@ -134,6 +136,14 @@ Ix.prototype.ready = function (seq, fn) {
   }
 };
 
+Ix.prototype._exists = function (seq, cb) {
+  this._db.get('xe!' + seq, function (err) {
+    if (notFound(err)) cb(null, false)
+    else if (err) cb(err)
+    else cb(null, true)
+  });
+};
+
 Ix.prototype._finish = function (n) {
   var self = this;
   process.nextTick(function () {
@@ -143,3 +153,7 @@ Ix.prototype._finish = function (n) {
     }
   });
 };
+
+function notFound (err) {
+  return err && (err.notFound || /notfound/i.test(err.message));
+}
