@@ -66,9 +66,9 @@ existing indexes to see the new result:
 
 ``` js
 var dex = indexer(log, idb, function (row, tx, next) {
-    tx.get('state', function (err, value) {
-        tx.put('state', (value || 1) * row.value.n, next);
-    });
+  tx.get('state', function (err, value) {
+    tx.put('state', (value || 1) * row.value.n, next);
+  });
 });
 ```
 
