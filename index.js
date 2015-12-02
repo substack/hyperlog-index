@@ -69,11 +69,6 @@ Ix.prototype.ready = function (fn) {
   if (!self._live) {
     self.once('live', function () { self.ready(fn) })
   } else if (self._pending > 0 || self._latest !== self._change) {
-    self.on('change', function f (ch) {
-      if (self._latest === ch) {
-        self.removeListener('change', f)
-        fn()
-      }
-    })
+    self.once('change', function () { self.ready(fn) })
   } else fn()
 }
