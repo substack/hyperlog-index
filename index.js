@@ -1,7 +1,6 @@
 var through = require('through2')
 var inherits = require('inherits')
 var EventEmitter = require('events').EventEmitter
-var defaults = require('levelup-defaults')
 
 module.exports = Ix
 inherits(Ix, EventEmitter)
@@ -11,7 +10,6 @@ var SEQ = 'seq'
 function Ix (log, db, fn) {
   if (!(this instanceof Ix)) return new Ix(log, db, fn)
   EventEmitter.call(this)
-  db = defaults(db, { valueEncoding: 'json' })
   var self = this
   this._change = -1
   this._db = db
@@ -28,7 +26,7 @@ function Ix (log, db, fn) {
   })
   db.get(SEQ, function (err, value) {
     log.ready(function () {
-      self._change = value
+      self._change = Number(value || 0)
       var r = log.createReadStream({ since: value })
       r.on('error', function (err) { self.emit('error', err) })
       r.pipe(through.obj(write, end))
@@ -41,7 +39,7 @@ function Ix (log, db, fn) {
 
     fn(row, function (err) {
       if (err) return next(err)
-      db.put(SEQ, row.change, function (err) {
+      db.put(SEQ, String(row.change), function (err) {
         if (err) return next(err)
         self._change = row.change
         self.emit('change', self._change)
@@ -51,6 +49,7 @@ function Ix (log, db, fn) {
   }
   function end () {
     self._live = true
+    self._latest = self._change
     self.emit('live')
 
     log.ready(function () {

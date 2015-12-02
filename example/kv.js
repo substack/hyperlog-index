@@ -8,10 +8,10 @@ var argv = minimist(process.argv.slice(2), {
   default: { hdb: '/tmp/hdb', idb: '/tmp/idb' }
 })
 
-var hdb = level(argv.hdb, { valueEncoding: 'json' })
-var idb = level(argv.idb, { valueEncoding: 'json' })
+var hdb = level(argv.hdb)
+var idb = level(argv.idb)
 var log = hyperlog(hdb, { valueEncoding: 'json' })
-var db = sub(idb, 'x')
+var db = sub(idb, 'x', { valueEncoding: 'json' })
 
 var dex = indexer(log, sub(idb, 'i'), function (row, next) {
   db.get(row.value.k, function (err, doc) {
