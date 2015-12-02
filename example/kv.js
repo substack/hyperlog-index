@@ -1,11 +1,19 @@
-var memdb = require('memdb')
+var level = require('level')
 var indexer = require('../')
 var hyperlog = require('hyperlog')
+var sub = require('subleveldown')
 
-var db = memdb({ valueEncoding: 'json' })
-var log = hyperlog(memdb(), { valueEncoding: 'json' })
+var minimist = require('minimist')
+var argv = minimist(process.argv.slice(2), {
+  default: { hdb: '/tmp/hdb', idb: '/tmp/idb' }
+})
 
-var dex = indexer(log, db, function (row, next) {
+var hdb = level(argv.hdb, { valueEncoding: 'json' })
+var idb = level(argv.idb, { valueEncoding: 'json' })
+var log = hyperlog(hdb, { valueEncoding: 'json' })
+var db = sub(idb, 'x')
+
+var dex = indexer(log, sub(idb, 'i'), function (row, next) {
   db.get(row.value.k, function (err, doc) {
     if (!doc) doc = {}
     row.links.forEach(function (link) {
@@ -16,16 +24,22 @@ var dex = indexer(log, db, function (row, next) {
   })
 })
 
-log.add(null, { k: 'a', v: 3 }, function (err, node0) {
-  log.add([node0.key], { k: 'a', v: 4 }, function (err, node1) {
-    log.add([node1.key], { k: 'a', v: 8 }, function (err, node2) {
-      log.add([node0.key], { k: 'a', v: 15 })
+if (argv._[0] === 'get') {
+  dex.ready(function () {
+    db.get('a', function (err, values) {
+      if (err) console.error(err)
+      else console.log(values)
     })
   })
-})
-
-dex.ready(function () {
-  db.get('a', function (err, values) {
-    console.log('VALUES=', values)
+} else if (argv._[0] === 'put') {
+  var k = argv._[1]
+  var v = argv._[2]
+  dex.ready(function () {
+    log.append({ k: k, v: v }, function (err, node) {
+      if (err) console.error(err)
+      else console.log(node.key)
+    })
   })
-})
+} else if (argv._[0] === 'sync') {
+  process.stdin.pipe(log.replicate()).pipe(process.stdout)
+}
