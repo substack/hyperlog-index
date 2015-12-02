@@ -26,18 +26,19 @@ var dex = indexer(log, sub(idb, 'i'), function (row, next) {
 
 if (argv._[0] === 'get') {
   dex.ready(function () {
-    db.get('a', function (err, values) {
+    db.get(argv._[1], function (err, values) {
       if (err) console.error(err)
       else console.log(values)
     })
   })
 } else if (argv._[0] === 'put') {
-  var k = argv._[1]
-  var v = argv._[2]
+  var doc = { k: argv._[1], v: argv._[2] }
   dex.ready(function () {
-    log.append({ k: k, v: v }, function (err, node) {
-      if (err) console.error(err)
-      else console.log(node.key)
+    db.get(doc.k, function (err, values) {
+      log.add(Object.keys(values || {}), doc, function (err, node) {
+        if (err) console.error(err)
+        else console.log(node.key)
+      })
     })
   })
 } else if (argv._[0] === 'sync') {
