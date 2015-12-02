@@ -7,7 +7,7 @@ var db = memdb({ valueEncoding: 'json' })
 var log = hyperlog(memdb(), { valueEncoding: 'json' })
 
 test('kv fork', function (t) {
-  t.plan(5)
+  t.plan(8)
   var dex = indexer(log, db, function (row, next) {
     db.get(row.value.k, function (err, doc) {
       if (!doc) doc = {}
@@ -42,7 +42,24 @@ test('kv fork', function (t) {
       var expected = {}
       expected[nodes[3].key] = 15
       expected[nodes[2].key] = 8
-      t.deepEqual(values, expected, 'expected values')
+      t.deepEqual(values, expected, 'expected fork values')
+      merge()
     })
   })
+
+  function merge () {
+    log.add([nodes[2].key,nodes[3].key], { k: 'a', v: 100 },
+    function (err, node4) {
+      t.ifError(err)
+      nodes.push(node4)
+    })
+    dex.ready(function () {
+      db.get('a', function (err, values) {
+        t.ifError(err)
+        var expected = {}
+        expected[nodes[4].key] = 100
+        t.deepEqual(values, expected, 'expected merge values')
+      })
+    })
+  }
 })
