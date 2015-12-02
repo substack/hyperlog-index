@@ -2,14 +2,16 @@ var level = require('level')
 var indexer = require('../')
 var hyperlog = require('hyperlog')
 var sub = require('subleveldown')
+var mkdirp = require('mkdirp')
 
 var minimist = require('minimist')
 var argv = minimist(process.argv.slice(2), {
-  default: { hdb: '/tmp/hdb', idb: '/tmp/idb' }
+  default: { d: '/tmp/kv.db' }
 })
+mkdirp.sync(argv.d)
 
-var hdb = level(argv.hdb)
-var idb = level(argv.idb)
+var hdb = level(argv.d + '/h')
+var idb = level(argv.d + '/i')
 var log = hyperlog(hdb, { valueEncoding: 'json' })
 var db = sub(idb, 'x', { valueEncoding: 'json' })
 
@@ -37,10 +39,11 @@ if (argv._[0] === 'get') {
     db.get(doc.k, function (err, values) {
       log.add(Object.keys(values || {}), doc, function (err, node) {
         if (err) console.error(err)
-        else console.log(node.key)
       })
     })
   })
 } else if (argv._[0] === 'sync') {
-  process.stdin.pipe(log.replicate()).pipe(process.stdout)
+  var r = log.replicate()
+  process.stdin.pipe(r).pipe(process.stdout)
+  r.on('end', function () { process.stdin.pause() })
 }

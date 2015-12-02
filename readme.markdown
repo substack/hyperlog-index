@@ -4,151 +4,110 @@ forking indexes for [hyperlog](https://npmjs.com/package/hyperlog)
 
 # example
 
-``` js
-var level = require('level');
-var hdb = level('/tmp/log.db');
-var idb = level('/tmp/index.db', { valueEncoding: 'json' });
+## forking key/value store
 
-var hyperlog = require('hyperlog');
-var log = hyperlog(hdb, { valueEncoding: 'json' });
-
-var indexer = require('hyperlog-index');
-var dex = indexer(log, idb, function (row, tx, next) {
-  tx.get('state', function (err, value) {
-    tx.put('state', (value || 0) + row.value.n, next);
-  });
-});
-
-if (process.argv[2] === 'add') {
-  var n = Number(process.argv[3]);
-  log.append({ n: n });
-}
-else if (process.argv[2] === 'show') {
-  log.heads(function (err, heads) {
-    heads.forEach(onhead);
-  });
-  function onhead (head) {
-    var tx = dex.open(head.key);
-    tx.get('state', function (err, value) {
-      console.log(value || 0);
-      tx.close();
-    });
-  }
-}
-```
-
-First we can write some data into the log and inspect the indexes:
-
-```
-$ node adder.js add 2
-$ node adder.js add 3
-$ node adder.js show
-5
-$ node adder.js add 100
-$ node adder.js show
-105
-```
-
-But if the indexes are destroyed or cleared to for new indexing logic, the
-indexer picks up where it left off:
-
-```
-$ rm -rf /tmp/index.db
-$ node adder.js show
-105
-$ node adder.js add 300
-$ node adder.js show
-405
-```
-
-We can also modify the indexing function with new logic and then clear the
-existing indexes to see the new result:
+Using hyperlog-index, we can easily build a key/value store backed to a hyperlog
+that implements a [multi-value register conflict strategy](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type#Others):
 
 ``` js
-var dex = indexer(log, idb, function (row, tx, next) {
-  tx.get('state', function (err, value) {
-    tx.put('state', (value || 1) * row.value.n, next);
-  });
-});
-```
+var level = require('level')
+var indexer = require('hyperlog-index')
+var hyperlog = require('hyperlog')
+var sub = require('subleveldown')
+var mkdirp = require('mkdirp')
 
-Now our adder is actually a multiplier. And now:
+var minimist = require('minimist')
+var argv = minimist(process.argv.slice(2), {
+  default: { d: '/tmp/kv.db' }
+})
+mkdirp.sync(argv.d)
 
-```
-$ rm -rf /tmp/index.db
-$ node adder.js show
-180000
-$ node adder.js add 2
-$ node adder.js show
-360000
-```
+var hdb = level(argv.d + '/h')
+var idb = level(argv.d + '/i')
+var log = hyperlog(hdb, { valueEncoding: 'json' })
+var db = sub(idb, 'x', { valueEncoding: 'json' })
 
-We did all of this without modifying the underlying log. Hooray!
+var dex = indexer(log, sub(idb, 'i'), function (row, next) {
+  db.get(row.value.k, function (err, doc) {
+    if (!doc) doc = {}
+    row.links.forEach(function (link) {
+      delete doc[link]
+    })
+    doc[row.key] = row.value.v
+    db.put(row.value.k, doc, next)
+  })
+})
 
-## forking example
-
-If there are forks in the data set, the indexes are forked along with the data.
-
-For example, if we create a forked data set:
-
-``` js
-var memdb = require('memdb');
-var indexer = require('hyperlog-index');
-var hyperlog = require('hyperlog');
-
-var hdb = memdb();
-var idb = memdb({ valueEncoding: 'json' });
-var log = hyperlog(hdb, { valueEncoding: 'json' });
-
-var dex = indexer(log, idb, function (row, tx, next) {
-  tx.get('sum', function (err, value) {
-    tx.put('sum', (value || 0) + row.value.n, next);
-  });
-});
-
-log.add(null, { n: 3 }, function (err, node0) {
-  log.add([node0.key], { n: 4 }, function (err, node1) {
-    log.add([node1.key], { n: 100 }, function (err, node2) {
-      log.add([node0.key], { n: 101 }, ready);
-    });
-  });
-});
-
-function ready () {
-  log.heads().on('data', function (head) {
-    var tx = dex.open(head.key);
-    tx.get('sum', function (err, value) {
-      console.log(head.key, 'VALUE=', value);
-      tx.close();
-    });
-  });
+if (argv._[0] === 'get') {
+  dex.ready(function () {
+    db.get(argv._[1], function (err, values) {
+      if (err) console.error(err)
+      else console.log(values)
+    })
+  })
+} else if (argv._[0] === 'put') {
+  var doc = { k: argv._[1], v: argv._[2] }
+  dex.ready(function () {
+    db.get(doc.k, function (err, values) {
+      log.add(Object.keys(values || {}), doc, function (err, node) {
+        if (err) console.error(err)
+      })
+    })
+  })
+} else if (argv._[0] === 'sync') {
+  var r = log.replicate()
+  process.stdin.pipe(r).pipe(process.stdout)
+  r.on('end', function () { process.stdin.pause() })
 }
 ```
 
-There will be 2 separate index results for each head:
+Each key maps to an object of hashes to values:
 
 ```
-$ node fork.js 
-76bf45fa113a16580478e530542a356324841cb8bd230956bf1fd420d0f35e00 VALUE= 107
-e562c405b73e3c027487d9121df2f50478db5f9565f805e7bce75f9996b6c9ea VALUE= 104
+$ node kv.js -d /tmp/db1 put A beep
+$ node kv.js -d /tmp/db1 put A boop
+$ node kv.js -d /tmp/db1 get A
+{ '06e4130fc5f2392cb8bdb065d18eaa523d716f2c61b4877853340a5cc727fb42': 'boop' }
 ```
 
-If we merge this data later:
-
-``` js
-log.add([ node2.key, node3.key ], { n: 500 }, ready);
-```
-
-Because our data is commutative the indexes will automatically converge without
-handling merging explicitly in the indexes:
+Meanwhile, a second database may have additional edits:
 
 ```
-$ node merge.js 
-313f00da58ba48535f1a284a1e7735692c2f107479af2eda93670b5316efec54 VALUE= 607
+$ node kv.js -d /tmp/db2 put A whatever
+$ node kv.js -d /tmp/db2 put B hey
 ```
 
-For more complicated scenarios, you might want to include extra information in
-the update for the index function to resolve the merge.
+When these two databases are merged together, the key at `A` has two values:
+
+```
+$ dupsh 'node kv.js -d /tmp/db1 sync' 'node kv.js -d /tmp/db2 sync'
+$ node kv.js -d /tmp/db1 get A
+{ '06e4130fc5f2392cb8bdb065d18eaa523d716f2c61b4877853340a5cc727fb42': 'boop',
+  cba756b45e279ae5c3f3ebc8cfe0d50e1f2205e37a4443ce9e0e5a41491c234c: 'whatever' }
+```
+
+The `B` key has only a single element:
+
+```
+$ node kv.js -d /tmp/db1 get B
+{ '53a374617fb8839b6f19646d6658188a4fc08d19f35c084dab835847532a3468': 'hey' }
+```
+
+New updates that link at both existing keys will merge into a single key:
+
+```
+$ node kv.js -d /tmp/db1 put A whatboop
+$ node kv.js -d /tmp/db1 get A
+{ '85915730b3e7a4f715057e74af79b564a5be2ec14d334d344cb84d1544ec6107': 'whatboop' }
+```
+
+and these merges can be communicated over replication:
+
+```
+$ dupsh 'node kv.js -d /tmp/db1 sync' 'node kv.js -d /tmp/db2 sync'
+$ node kv.js -d /tmp/db2 get A
+{ '85915730b3e7a4f715057e74af79b564a5be2ec14d334d344cb84d1544ec6107': 'whatboop' }
+```
 
 # api
 
@@ -158,28 +117,22 @@ var indexer = require('hyperlog-index')
 
 ## var dex = indexer(log, db, fn)
 
-Create a new hyperlog index instance `dex` from a hyperlog `log`, a levelup or
-sublevel database `db`, and an indexing function `fn`.
+Create a new hyperlog index instance `dex` from a hyperlog `log`, a level
+instance `db`, and an indexing function `fn`.
 
 You can have as many indexes as you like on the same log, just create more `dex`
 instances on sublevels.
 
-## var db = dex.open(head)
+## fn(row, next)
 
-Create a handle `db` for the indexes at the string `head` once they've
-fully "caught up".
+The indexing function `fn` runs for each `row`. The indexing function should
+write its computed indexes to durable storage and call `next(err)` when it is
+finished.
 
-## dex.ready(from=[], fn)
+## dex.ready(fn)
 
-`fn()` fires when the indexes are "caught up" or on the next tick if the indexes
-have processed all of the log.
-
-If an array of string keys `from` is given, `fn()` won't fire until the indexes
-have caught up to all of the given keys instead of the entire log.
-
-## dex.resume()
-
-Resume the indexes after an error.
+`fn()` fires when the indexes have "caught up" to the latest known change in the
+hyperlog.
 
 ## dex.on('error', function (err) {})
 
