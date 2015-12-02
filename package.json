@@ -13,13 +13,13 @@
     "through2": "^2.0.0"
   },
   "devDependencies": {
-    "collect-stream": "^1.0.0",
     "covert": "^1.1.0",
-    "hyperlog": "^4.1.0",
+    "hyperlog": "^4.7.0",
     "hyperlog-concestor": "^1.0.0",
     "level-test": "^2.0.0",
     "memdb": "^1.0.1",
-    "mkdirp": "^0.5.1",
+    "once": "^1.3.3",
+    "subleveldown": "^2.1.0",
     "tape": "^4.0.0"
   },
   "scripts": {
