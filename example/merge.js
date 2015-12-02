@@ -3,17 +3,17 @@ var indexer = require('../')
 var hyperlog = require('hyperlog')
 var concestor = require('hyperlog-concestor')
 var sub = require('subleveldown')
+var once = require('once')
 
-var db = memdb()
-var idb = memdb({ valueEncoding: 'json' })
-var log = hyperlog(db, { valueEncoding: 'json' })
+var db = memdb({ valueEncoding: 'json' })
+var log = hyperlog(sub(db, 'l'), { valueEncoding: 'json' })
 
-var dex = indexer(log, idb, function (row, next) {
+var dex = indexer(log, sub(db, 'i'), function (row, next) {
   if (row.links.length === 0) {
-    db.put('sum!' + row.key, row.n, next)
+    db.put('sum!' + row.key, row.value.n, next)
   } else if (row.links.length === 1) {
     db.get('sum!' + row.links[0], function (err, value) {
-      db.put('sum!' + row.key, value + row.n, next)
+      db.put('sum!' + row.key, value + row.value.n, next)
     })
   } else {
     concestor(log, row.links, function f (err, cons) {
@@ -28,7 +28,7 @@ var dex = indexer(log, idb, function (row, next) {
       } else {
         getSums(cons.concat(row.links), function (err, sums) {
           if (err) return next(err)
-          var sum = sums[0] + sums[1]
+          var sum = sums[1] + row.value.n
           for (var i = 2; i < sums.length; i++) {
             sum += sums[i] - sums[0]
           }
@@ -61,7 +61,15 @@ function ready () {
 }
 
 function getSums (keys, cb) {
-  var pending = keys.length
+  cb = once(cb)
+  var pending = keys.length, sums = []
+  keys.forEach(function (key) {
+    db.get('sum!' + key, function (err, sum) {
+      if (err) return cb(err)
+      sums.push(sum)
+      if (--pending === 0) cb(null, sums)
+    })
+  })
 }
 
 function add (a, b) { return a + b }
