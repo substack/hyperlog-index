@@ -27,15 +27,19 @@ var idb = level(argv.d + '/i')
 var log = hyperlog(hdb, { valueEncoding: 'json' })
 var db = sub(idb, 'x', { valueEncoding: 'json' })
 
-var dex = indexer(log, sub(idb, 'i'), function (row, next) {
-  db.get(row.value.k, function (err, doc) {
-    if (!doc) doc = {}
-    row.links.forEach(function (link) {
-      delete doc[link]
+var dex = indexer({
+  log: log,
+  db: sub(idb, 'i'),
+  map: function (row, next) {
+    db.get(row.value.k, function (err, doc) {
+      if (!doc) doc = {}
+      row.links.forEach(function (link) {
+        delete doc[link]
+      })
+      doc[row.key] = row.value.v
+      db.put(row.value.k, doc, next)
     })
-    doc[row.key] = row.value.v
-    db.put(row.value.k, doc, next)
-  })
+  }
 })
 
 if (argv._[0] === 'get') {
@@ -125,15 +129,18 @@ This is a useful strategy when you need to update the code in your indexes.
 var indexer = require('hyperlog-index')
 ```
 
-## var dex = indexer(log, db, fn)
+## var dex = indexer(opts)
 
-Create a new hyperlog index instance `dex` from a hyperlog `log`, a level
-instance `db`, and an indexing function `fn`.
+Create a new hyperlog index instance `dex` from:
+
+* `opts.log` - a hyperlog instance (required)
+* `opts.db` - a level instance (required)
+* `opts.map` - an indexing function `function (row, next) {}`
 
 You can have as many indexes as you like on the same log, just create more `dex`
 instances on sublevels.
 
-## fn(row, next)
+## opts.map(row, next)
 
 The indexing function `fn` runs for each `row`. The indexing function should
 write its computed indexes to durable storage and call `next(err)` when it is

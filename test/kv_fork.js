@@ -8,7 +8,12 @@ var log = hyperlog(memdb(), { valueEncoding: 'json' })
 
 test('kv fork', function (t) {
   t.plan(8)
-  var dex = indexer(log, db, function (row, next) {
+  var dex = indexer({
+    log: log,
+    db: db,
+    map: map
+  })
+  function map (row, next) {
     db.get(row.value.k, function (err, doc) {
       if (!doc) doc = {}
       row.links.forEach(function (link) {
@@ -17,7 +22,7 @@ test('kv fork', function (t) {
       doc[row.key] = row.value.v
       db.put(row.value.k, doc, next)
     })
-  })
+  }
 
   var nodes = []
   log.add(null, { k: 'a', v: 3 }, function (err, node0) {

@@ -7,27 +7,30 @@ inherits(Ix, EventEmitter)
 
 var SEQ = 'seq'
 
-function Ix (log, db, fn) {
-  if (!(this instanceof Ix)) return new Ix(log, db, fn)
-  EventEmitter.call(this)
+function Ix (opts) {
+  if (!(this instanceof Ix)) return new Ix(opts)
   var self = this
-  this._change = -1
-  this._db = db
-  this._latest = 0
-  this._live = false
-  this._pending = 0
+  EventEmitter.call(self)
+
+  self._change = -1
+  self._latest = 0
+  self._live = false
+  self._pending = 0
+  self.map = opts.map
+  self.log = opts.log
+  self.db = opts.db
   
-  log.on('preadd', function (node) {
+  self.log.on('preadd', function (node) {
     self._pending++
   })
-  log.on('add', function (node) {
+  self.log.on('add', function (node) {
     self._latest = Math.max(node.change, self._latest)
     self._pending--
   })
-  db.get(SEQ, function (err, value) {
-    log.ready(function () {
+  self.db.get(SEQ, function (err, value) {
+    self.log.ready(function () {
       self._change = Number(value || 0)
-      var r = log.createReadStream({ since: value })
+      var r = self.log.createReadStream({ since: value })
       r.on('error', function (err) { self.emit('error', err) })
       r.pipe(through.obj(write, end))
     })
@@ -37,9 +40,9 @@ function Ix (log, db, fn) {
     self._latest = Math.max(row.change, self._latest)
     self.emit('row', row)
 
-    fn(row, function (err) {
+    self.map(row, function (err) {
       if (err) return next(err)
-      db.put(SEQ, String(row.change), function (err) {
+      self.db.put(SEQ, String(row.change), function (err) {
         if (err) return next(err)
         self._change = row.change
         self.emit('change', self._change)
@@ -52,8 +55,8 @@ function Ix (log, db, fn) {
     self._latest = self._change
     self.emit('live')
 
-    log.ready(function () {
-      var r = log.createReadStream({
+    self.log.ready(function () {
+      var r = self.log.createReadStream({
         live: true,
         since: self._change
       })

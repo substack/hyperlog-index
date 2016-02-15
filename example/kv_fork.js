@@ -5,15 +5,19 @@ var hyperlog = require('hyperlog')
 var db = memdb({ valueEncoding: 'json' })
 var log = hyperlog(memdb(), { valueEncoding: 'json' })
 
-var dex = indexer(log, db, function (row, next) {
-  db.get(row.value.k, function (err, doc) {
-    if (!doc) doc = {}
-    row.links.forEach(function (link) {
-      delete doc[link]
+var dex = indexer({
+  log: log,
+  db: db,
+  map: function (row, next) {
+    db.get(row.value.k, function (err, doc) {
+      if (!doc) doc = {}
+      row.links.forEach(function (link) {
+        delete doc[link]
+      })
+      doc[row.key] = row.value.v
+      db.put(row.value.k, doc, next)
     })
-    doc[row.key] = row.value.v
-    db.put(row.value.k, doc, next)
-  })
+  }
 })
 
 log.add(null, { k: 'a', v: 3 }, function (err, node0) {

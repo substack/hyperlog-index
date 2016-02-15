@@ -8,7 +8,13 @@ var once = require('once')
 var db = memdb({ valueEncoding: 'json' })
 var log = hyperlog(sub(db, 'l'), { valueEncoding: 'json' })
 
-var dex = indexer(log, sub(db, 'i'), function (row, next) {
+var dex = indexer({
+  log: log,
+  db: sub(db, 'i'),
+  map: map
+})
+
+function map (row, next) {
   if (row.links.length === 0) {
     db.put('sum!' + row.key, row.value.n, next)
   } else if (row.links.length === 1) {
@@ -37,7 +43,7 @@ var dex = indexer(log, sub(db, 'i'), function (row, next) {
       }
     })
   }
-})
+}
 
 log.add(null, { n: 3 }, function (err, node0) {
   log.add([node0.key], { n: 4 }, function (err, node1) {

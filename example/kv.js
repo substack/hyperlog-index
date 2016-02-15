@@ -15,15 +15,19 @@ var idb = level(argv.d + '/i')
 var log = hyperlog(hdb, { valueEncoding: 'json' })
 var db = sub(idb, 'x', { valueEncoding: 'json' })
 
-var dex = indexer(log, sub(idb, 'i'), function (row, next) {
-  db.get(row.value.k, function (err, doc) {
-    if (!doc) doc = {}
-    row.links.forEach(function (link) {
-      delete doc[link]
+var dex = indexer({
+  log: log,
+  db: sub(idb, 'i'),
+  map: function (row, next) {
+    db.get(row.value.k, function (err, doc) {
+      if (!doc) doc = {}
+      row.links.forEach(function (link) {
+        delete doc[link]
+      })
+      doc[row.key] = row.value.v
+      db.put(row.value.k, doc, next)
     })
-    doc[row.key] = row.value.v
-    db.put(row.value.k, doc, next)
-  })
+  }
 })
 
 if (argv._[0] === 'get') {
@@ -34,7 +38,7 @@ if (argv._[0] === 'get') {
     })
   })
 } else if (argv._[0] === 'put') {
-  var doc = { k: argv._[1], v: argv._[2] }
+  var doc = { k: argv._[1], v: JSON.parse(argv._[2]) }
   dex.ready(function () {
     db.get(doc.k, function (err, values) {
       log.add(Object.keys(values || {}), doc, function (err, node) {
