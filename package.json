@@ -1,6 +1,6 @@
 {
   "name": "hyperlog-index",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "forking indexes for hyperlog",
   "main": "index.js",
   "directories": {
