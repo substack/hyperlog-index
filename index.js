@@ -15,14 +15,14 @@ function Ix (log, db, fn) {
   this._db = db
   this._latest = 0
   this._live = false
-  this._pending = 0
+  this._pending = false
   
   log.on('preadd', function (node) {
-    self._pending++
+    self._pending = true
   })
   log.on('add', function (node) {
     self._latest = Math.max(node.change, self._latest)
-    self._pending--
+    self._pending = false
   })
   db.get(SEQ, function (err, value) {
     log.ready(function () {
@@ -67,7 +67,7 @@ Ix.prototype.ready = function (fn) {
   var self = this
   if (!self._live) {
     self.once('live', function () { self.ready(fn) })
-  } else if (self._pending > 0 || self._latest !== self._change) {
+  } else if (self._pending || self._latest !== self._change) {
     self.once('change', function () { self.ready(fn) })
   } else fn()
 }
