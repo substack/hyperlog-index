@@ -15,17 +15,20 @@ function Ix (opts) {
   self._change = -1
   self._latest = 0
   self._live = false
-  self._pending = false
+  self._pending = 0
   self.map = opts.map
   self.log = opts.log
   self.db = opts.db
   
   self.log.on('preadd', function (node) {
-    self._pending = true
+    self._pending++
   })
   self.log.on('add', function (node) {
     self._latest = Math.max(node.change, self._latest)
-    self._pending = false
+    if (--self._pending === 0) self.emit('_ready')
+  })
+  self.log.on('reject', function (node) {
+    if (--self._pending === 0) self.emit('_ready')
   })
   self.db.get(SEQ, function (err, value) {
     self.log.ready(function () {
@@ -70,7 +73,9 @@ Ix.prototype.ready = function (fn) {
   var self = this
   if (!self._live) {
     self.once('live', function () { self.ready(fn) })
-  } else if (self._pending || self._latest !== self._change) {
+  } else if (self._pending > 0) {
+    self.once('_ready', function () { self.ready(fn) })
+  } else if (self._latest !== self._change) {
     self.once('change', function () { self.ready(fn) })
   } else fn()
 }
