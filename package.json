@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "covert": "^1.1.0",
-    "hyperlog": "^4.7.0",
+    "hyperlog": "^4.10.0",
     "hyperlog-concestor": "^1.0.0",
     "level-test": "^2.0.0",
     "memdb": "^1.0.1",
