@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "inherits": "^2.0.1",
-    "minimist": "^1.2.0",
     "through2": "^2.0.0"
   },
   "devDependencies": {
@@ -18,6 +17,7 @@
     "hyperlog-concestor": "^1.0.0",
     "level-test": "^2.0.0",
     "memdb": "^1.0.1",
+    "minimist": "^1.2.0",
     "once": "^1.3.3",
     "subleveldown": "^2.1.0",
     "tape": "^4.0.0"
