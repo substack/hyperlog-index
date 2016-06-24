@@ -149,8 +149,8 @@ finished.
 ## dex.ready(fn)
 
 Registers the callback `fn()` to fire when the indexes have "caught up" to the
-latest known change in the hyperlog. This gets fired once, and multiple ready
-functions can be set.
+latest known change in the hyperlog. The `fn()` function fires exactly once. You
+may call `dex.ready()` multiple times with different functions.
 
 ## dex.on('error', function (err) {})
 
