@@ -77,5 +77,5 @@ Ix.prototype.ready = function (fn) {
     self.once('_ready', function () { self.ready(fn) })
   } else if (self._latest !== self._change) {
     self.once('change', function () { self.ready(fn) })
-  } else fn()
+  } else process.nextTick(fn)
 }
