@@ -11,6 +11,7 @@ function Ix (opts) {
   if (!(this instanceof Ix)) return new Ix(opts)
   var self = this
   EventEmitter.call(self)
+  self.setMaxListeners(Infinity)
 
   self._change = -1
   self._latest = 0
