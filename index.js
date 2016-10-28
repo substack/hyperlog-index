@@ -17,7 +17,6 @@ function Ix (opts) {
   self._latest = 0
   self._live = false
   self._pending = 0
-  self._logStream = null
   self._paused = false
   self.map = opts.map
   self.log = opts.log
@@ -34,17 +33,21 @@ function Ix (opts) {
     if (--self._pending === 0) self.emit('_ready')
   })
   self.db.get(SEQ, function (err, value) {
-    self.log.ready(function () {
+    self.log.ready(function f () {
+      if (self._paused) {
+        return self.once('resume', function () { self.log.ready(f) })
+      }
       self._change = Number(value || 0)
       var r = self.log.createReadStream({ since: value })
-      if (self._paused) r.pause()
-      self._logStream = r
       r.on('error', function (err) { self.emit('error', err) })
       r.pipe(through.obj(write, end))
     })
   })
 
   function write (row, enc, next) {
+    if (self._paused) {
+      return self.once('resume', function () { write(row, enc, next) })
+    }
     self._latest = Math.max(row.change, self._latest)
     self.emit('row', row)
 
@@ -59,17 +62,19 @@ function Ix (opts) {
     })
   }
   function end () {
+    if (self._paused) return self.once('resume', end)
     self._live = true
     self._latest = self._change
     self.emit('live')
 
-    self.log.ready(function () {
+    self.log.ready(function f () {
+      if (self._paused) {
+        return self.once('resume', function () { self.log.ready(f) })
+      }
       var r = self.log.createReadStream({
         live: true,
         since: self._change
       })
-      if (self._paused) r.pause()
-      self._logStream = r
       r.pipe(through.obj(write))
       r.on('error', function (err) { self.emit('error', err) })
     })
@@ -92,13 +97,11 @@ Ix.prototype.ready = function (fn) {
 Ix.prototype.pause = function () {
   var p = this._paused
   this._paused = true
-  if (this._logStream) this._logStream.pause()
   if (!p) this.emit('pause')
 }
 
 Ix.prototype.resume = function () {
   var p = this._paused
   this._paused = false
-  if (this._logStream) this._logStream.resume()
   if (p) this.emit('resume')
 }
