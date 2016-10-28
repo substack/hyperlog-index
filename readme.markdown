@@ -152,6 +152,15 @@ Registers the callback `fn()` to fire when the indexes have "caught up" to the
 latest known change in the hyperlog. The `fn()` function fires exactly once. You
 may call `dex.ready()` multiple times with different functions.
 
+## dex.pause()
+
+Pause calculating the indexes. `dex.ready()` will not fire until the indexes
+have been resumed.
+
+## dex.resume()
+
+Resume calculation of the indexes after `dex.pause()`.
+
 ## dex.on('error', function (err) {})
 
 If the underlying system generates an error, you can catch it here.
