@@ -21,7 +21,7 @@ function Ix (opts) {
   self.map = opts.map
   self.log = opts.log
   self.db = opts.db
-  
+
   self.log.on('preadd', function (node) {
     self._pending++
   })
@@ -40,7 +40,9 @@ function Ix (opts) {
       self._change = Number(value || 0)
       var r = self.log.createReadStream({ since: value })
       r.on('error', function (err) { self.emit('error', err) })
-      r.pipe(through.obj(write, end))
+      var t = through.obj(write, end)
+      t.on('error', function (err) { self.emit('error', err) })
+      r.pipe(t)
     })
   })
 
