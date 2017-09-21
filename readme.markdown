@@ -123,6 +123,12 @@ $ node kv.js -d /tmp/db1 get A
 
 This is a useful strategy when you need to update the code in your indexes.
 
+**Note:** If you run the included example, the value is assumed to be a json object - and the command line put format will be more like this:
+
+```
+$ node example/kv.js -d /tmp/db1 put A '{"baap":"boop"}'
+```
+
 # api
 
 ``` js
