@@ -116,7 +116,7 @@ $ node kv.js -d /tmp/db2 get A
 And the index can be destroyed (and recalculated) at any time:
 
 ```
-$ rm -rf /tmp/db1
+$ rm -rf /tmp/db1/i
 $ node kv.js -d /tmp/db1 get A
 { '85915730b3e7a4f715057e74af79b564a5be2ec14d334d344cb84d1544ec6107': 'whatboop' }
 ```
