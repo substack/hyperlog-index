@@ -1,6 +1,8 @@
 # hyperlog-index
 
-forking indexes for [hyperlog](https://npmjs.com/package/hyperlog)
+Forking indexes for [hyperlog](https://npmjs.com/package/hyperlog)
+
+Built on the map/reduce pattern; hyperlog-index will call a map function on every hyperlog insert, building the index incrementally.
 
 # example
 
@@ -31,6 +33,7 @@ var dex = indexer({
   log: log,
   db: sub(idb, 'i'),
   map: function (row, next) {
+    // This method reduces our new state. In this example, db is used for the state.
     db.get(row.value.k, function (err, doc) {
       if (!doc) doc = {}
       row.links.forEach(function (link) {
@@ -50,9 +53,11 @@ if (argv._[0] === 'get') {
     })
   })
 } else if (argv._[0] === 'put') {
+  // Structure `doc` as expected by `map` above
   var doc = { k: argv._[1], v: argv._[2] }
   dex.ready(function () {
     db.get(doc.k, function (err, values) {
+      // Link the new entry to the "parents", from the current index, if any
       log.add(Object.keys(values || {}), doc, function (err, node) {
         if (err) console.error(err)
       })
@@ -97,6 +102,7 @@ $ node kv.js -d /tmp/db1 get B
 { '53a374617fb8839b6f19646d6658188a4fc08d19f35c084dab835847532a3468': 'hey' }
 ```
 
+This is because `put` does the linking of new nodes to old ones, which is not done in merge.
 New updates that link at both existing keys will merge into a single key:
 
 ```
@@ -116,12 +122,23 @@ $ node kv.js -d /tmp/db2 get A
 And the index can be destroyed (and recalculated) at any time:
 
 ```
-$ rm -rf /tmp/db1
+$ rm -rf /tmp/db1/i
 $ node kv.js -d /tmp/db1 get A
 { '85915730b3e7a4f715057e74af79b564a5be2ec14d334d344cb84d1544ec6107': 'whatboop' }
 ```
 
 This is a useful strategy when you need to update the code in your indexes.
+
+**Note:** If you run the included example, the value is assumed to be a json object. 
+The command line `put` format will be more like this:
+
+```
+$ node example/kv.js -d /tmp/db1 put A '{"baap":"boop"}'
+```
+
+**Note:** If you are primarily interested in a key/value index, like in this
+example - check out [hyperkv](https://www.npmjs.com/package/hyperkv)
+
 
 # api
 

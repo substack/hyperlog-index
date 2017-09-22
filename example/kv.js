@@ -19,6 +19,7 @@ var dex = indexer({
   log: log,
   db: sub(idb, 'i'),
   map: function (row, next) {
+    // This method reduces our new state. In this example, db is used for the state.
     db.get(row.value.k, function (err, doc) {
       if (!doc) doc = {}
       row.links.forEach(function (link) {
@@ -38,9 +39,11 @@ if (argv._[0] === 'get') {
     })
   })
 } else if (argv._[0] === 'put') {
+  // Structure `doc` as expected by `map` above
   var doc = { k: argv._[1], v: JSON.parse(argv._[2]) }
   dex.ready(function () {
     db.get(doc.k, function (err, values) {
+      // Link the new entry to the "parents", from the current index, if any
       log.add(Object.keys(values || {}), doc, function (err, node) {
         if (err) console.error(err)
       })
